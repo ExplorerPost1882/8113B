@@ -12,7 +12,7 @@ const float SENSITIVITY = 0.75; //%
 
 void checkControls() {
 	///////////////////////////////////MOVEMENT
-	int forwardVelocity = vexRT[AccelZ];
+	int forwardVelocity = vexRT[AccelY]; //WARNING!! test
 	int sidewaysVelocity = vexRT[AccelX] * SENSITIVITY;
 	int rightSpeed = forwardVelocity + sidewaysVelocity;
 	int leftSpeed = forwardVelocity - sidewaysVelocity;
