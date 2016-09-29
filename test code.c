@@ -41,9 +41,9 @@ task checkControls() {
 		if(vexRT[Btn8U] == 1) {//if up button is pressed raise the arm
 			setArmMotors(127);
 		} else if(vexRT[Btn8D] == 1) { //else if down button is pressed lower the arm
-			setArmMotors(-60);
+			setArmMotors(-70);
 		} else { //if no buttons are pressed stop the arm
-			setArmMotors(0);
+			setArmMotors(-15);
 		}
 	}
 }
@@ -52,7 +52,7 @@ task main() {
 	startTask(checkControls);
 	while(true) {
 		if(SensorValue(armStopper) == 1) {
-			moveBase(120, 120);
+
 		}
 	}
 }
