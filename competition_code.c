@@ -102,9 +102,8 @@ task checkBaseControls() {
 
 		///////////////////////////////MOVEMENT/////////////////////////Controller 1
 
-		int forwardVelocity = vexRT[Ch3] * SENSITIVITY; //left joystick up + down
-		int turnVelocity = vexRT[Ch1] * SENSITIVITY; //right joystick left + right
-		int slideVelocity = vexRT[Ch4] * SENSITIVITY;
+		int forwardVelocity = vexRT[Ch3] * SENSITIVITY; //-----------------------------------left joystick up + down
+		int turnVelocity = vexRT[Ch1] * SENSITIVITY; //--------------------------------------right joystick left + right
 
 		if(abs(forwardVelocity) < 20) { //deadzone check
 			forwardVelocity = 0;
@@ -112,12 +111,15 @@ task checkBaseControls() {
 		if(abs(turnVelocity) < 10) {
 			turnVelocity = 0;
 		}
-		if(abs(slideVelocity) < 50) {
-			slideVelocity = 0;
-		}
 
 		moveBase(forwardVelocity + turnVelocity, forwardVelocity - turnVelocity); //move(left, right)
-		motor[sidewaysBase] = slideVelocity;
+		if(vexRT[Btn5U] == 1) { //slide left-------------------------------------------------left top trigger
+			motor[sidewaysBase] = -127;
+		} else if(vexRT[Btn6U] == 1) {//slide right------------------------------------------right top trigger
+			motor[sidewaysBase] = 127;
+		} else {
+			motor[sidewaysBase] = 0;
+		}
 	}
 }
 
@@ -126,7 +128,7 @@ task checkArmControls {
 
 		////////////////////////////////////ARM/////////////////////////////Controller 2
 
-		if(vexRT[Btn8D] == 1) { //if up button is pressed raise the arm until sensor is pressed
+		if(vexRT[Btn8DXmtr2] == 1) { //launch-----------------------------------------------right bottom button
 			setArmMotors(-30); //dont do this too long
 			while(nMotorEncoder(rightTwist) > WRAPS * -360) {
 				setTwistMotors(-127); //start twisting : Once it hits WRAPS rotations around, launch the arm
@@ -140,45 +142,50 @@ task checkArmControls {
 				setTwistMotors(127);
 			}
 			setTwistMotors(0);
-		} else if(vexRT[Btn8R] == 1) { //else if down button is pressed lower the arm
-			setArmMotors(-10);
-		} else { //if no buttons are pressed stop the arm 0
-			setArmMotors(0);
 		}
-		if(vexRT[Btn7U]) {
-			setArmMotors(50);
-			setTwistMotors(-127);
-		} else if(vexRT(Btn7D)) {
-			setArmMotors(-20);
-			setTwistMotors(127);
-		} else {
-			setArmMotors(0);
-			setTwistMotors(0);
+
+		int armOverrideVelocity = vexRT[Ch2Xmtr2] * 0.25; //raise and lower arm-------------right  joystick
+
+		if(abs(armOverrideVelocity) < 5) { //deadzone check
+			armOverrideVelocity = 0;
 		}
+
+		setArmMotors(armOverrideVelocity); //when raising and lowering arm, assist with twist motors
+		setTwistMotors(-4 * armOverrideVelocity);
 
 		/////////////////////////////////////TWIST/////////////////////////
 
-		if(vexRT[Btn6U] == 1) {
+		if(vexRT[Btn6UXmtr2] == 1) { //force twist positive and zero------------------------right top trigger
 			setTwistMotors(40);
-		} else if(vexRT[Btn5U] == 1) {
+			nMotorEncoder[rightTwist] = 0;
+		} else if(vexRT[Btn5UXmtr2] == 1) { //force twist negative and zero-----------------left top trigger
 			setTwistMotors(-40);
+			nMotorEncoder[rightTwist] = 0;
 		} else {
 			setTwistMotors(0);
 		}
 
-		if(vexRT[Btn5D] == 1) { //calibrate the twist
-			nMotorEncoder[rightTwist] = -180;
+		if(vexRT[Btn7DXmtr2] == 1) { //calibrate the twist----------------------------------left bottom button
+			if(nMotorEncoder[rightTwist] < 0) {
+				while(nMotorEncoder[rightTwist] < 0) {
+					setTwistMotors(80);
+				}
+			} else {
+				while(nMotorEncoder[rightTwist] > 0) {
+					setTwistMotors(-80);
+				}
+			}
+			setTwistMotors(0);
 		}
 	}
 }
 
 task usercontrol() {
-	writeDebugStreamLine("avg batt: %d", nAvgBatteryLevel);
-	writeDebugStreamLine("imm batt: %d", nImmediateBatteryLevel);
+	writeDebugStreamLine("avg batt: %d", nAvgBatteryLevel / 1000);
 	startTask(checkBaseControls);
 	startTask(checkArmControls);
 	while(true) {
-		if(vexRT[Btn6D]) {//kill switch bottom right
+		if(vexRT[Btn6D] == 1 && vexRT[Btn6U] == 1 && vexRT[Btn5D] == 1 && vexRT[Btn5U] == 1) {//kill switch-all triggers at the same time
 			stopAllTasks();
 		}
 	}
