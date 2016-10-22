@@ -56,7 +56,7 @@ void pre_auton()
 ///////////////////////////////////////////////CONST VARS AND METHODS/////////////////////////////////
 
 const float SENSITIVITY = 0.7; //%
-const float WRAPS = 5.5;
+const float WRAPS = 6.0;
 
 void setArmMotors(int speed) {
 	motor[armLeftTop] = speed;
@@ -75,24 +75,77 @@ void moveBase(int leftMotor, int rightMotor) {
 	motor[leftBase] = leftMotor;
 }
 
-//////////////////////////////////////////////AUTONOMOUS CODE//////////////////////////////////////
+void launch() {
+	setArmMotors(-40); //dont do this too long
+	while(nMotorEncoder(rightTwist) > WRAPS * -360) {
+		setTwistMotors(-127); //start twisting : Once it hits WRAPS rotations around, launch the arm
+	}
+	setArmMotors(127); //start arm
+	waitUntil(SensorValue[armStopper] == 1);
+	setArmMotors(0); //stop once sensor is triggered
+	setTwistMotors(0);
+	wait1Msec(500);
+	while(nMotorEncoder(rightTwist) < -180) {
+		setTwistMotors(127);
+	}
+	setTwistMotors(0);
+}
 
-void moveFor(int time) { //distance in cm
-	moveBase(127, 127);
+void calibrateTwist() {
+	if(nMotorEncoder[rightTwist] < -90) {
+		while(nMotorEncoder[rightTwist] < -90) {
+			setTwistMotors(40);
+		}
+	} else {
+		while(nMotorEncoder[rightTwist] > 90) {
+			setTwistMotors(-40);
+		}
+	}
+	nMotorEncoder[rightTwist] = 0;
+	setTwistMotors(0);
+}
+
+//////////////////////////////////////////////AUTONOMOUS CODE//////////////////////////////////////
+void moveFor(int time, int dir) {
+	moveBase(dir * 60, dir * 60);
 	wait1Msec(time); //guesstimate (until encoders)
 	moveBase(0, 0);
+	wait1Msec(200);
 }
 
 void turn(int degrees) { //1 or -1
 	int dir = degrees / abs(degrees);
 	moveBase(dir * 80, -dir * 80);
-	wait1Msec(5 * degrees); //guesstimate (until encoders)
+	wait1Msec(6 * degrees); //guesstimate (until encoders)
 	moveBase(0, 0);
+	wait1Msec(200);
+}
+
+void raiseArmFor(int time) {
+	setArmMotors(25); //when raising and lowering arm, assist with twist motors
+	setTwistMotors(-127);
+	wait1Msec(time);
+	setArmMotors(0);
+	setTwistMotors(0);
+}
+
+void slideFor(int time, int dir) {
+	motor[sidewaysBase] = dir * 100;
+	wait1Msec(time);
+	motor[sidewaysBase] = 0;
+	wait1Msec(200);
 }
 
 task autonomous() {
-	moveFor(1000);
 	turn(90);
+	moveFor(600, 1);
+	raiseArmFor(1500);
+	moveFor(600, -1);
+	slideFor(1000, -1);
+	turn(90);
+	moveFor(1000, -1);
+	calibrateTwist();
+	//launch() ##############COMMENTED FOR INSPECTION ONLY
 }
 
 ////////////////////////////////////////////////////USER CONTROL CODE/////////////////////////////////////////
@@ -129,29 +182,16 @@ task checkArmControls {
 		////////////////////////////////////ARM/////////////////////////////Controller 2
 
 		if(vexRT[Btn8DXmtr2] == 1) { //launch-----------------------------------------------right bottom button
-			setArmMotors(-30); //dont do this too long
-			while(nMotorEncoder(rightTwist) > WRAPS * -360) {
-				setTwistMotors(-127); //start twisting : Once it hits WRAPS rotations around, launch the arm
-			}
-			setArmMotors(127); //start arm
-			waitUntil(SensorValue[armStopper] == 1);
-			setArmMotors(0); //stop once sensor is triggered
-			setTwistMotors(0);
-			wait1Msec(500);
-			while(nMotorEncoder(rightTwist) < -180) {
-				setTwistMotors(127);
-			}
-			setTwistMotors(0);
+			launch(); //auto pauses
 		}
 
-		int armOverrideVelocity = vexRT[Ch2Xmtr2] * 0.25; //raise and lower arm-------------right  joystick
-
-		if(abs(armOverrideVelocity) < 5) { //deadzone check
-			armOverrideVelocity = 0;
+		if(vexRT[Ch2Xmtr2] > 50) { //raise and lower arm-------------right  joystick
+			setArmMotors(90); //when raising and lowering arm, assist with twist motors
+			setTwistMotors(-127);
+		} else {
+			setArmMotors(0); //when raising and lowering arm, assist with twist motors
+			setTwistMotors(0);
 		}
-
-		setArmMotors(armOverrideVelocity); //when raising and lowering arm, assist with twist motors
-		setTwistMotors(-4 * armOverrideVelocity);
 
 		/////////////////////////////////////TWIST/////////////////////////
 
@@ -166,22 +206,13 @@ task checkArmControls {
 		}
 
 		if(vexRT[Btn7DXmtr2] == 1) { //calibrate the twist----------------------------------left bottom button
-			if(nMotorEncoder[rightTwist] < 0) {
-				while(nMotorEncoder[rightTwist] < 0) {
-					setTwistMotors(80);
-				}
-			} else {
-				while(nMotorEncoder[rightTwist] > 0) {
-					setTwistMotors(-80);
-				}
-			}
-			setTwistMotors(0);
+			calibrateTwist();
 		}
 	}
 }
 
 task usercontrol() {
-	writeDebugStreamLine("avg batt: %d", nAvgBatteryLevel / 1000);
+	writeDebugStreamLine("avg batt: %d", nAvgBatteryLevel);
 	startTask(checkBaseControls);
 	startTask(checkArmControls);
 	while(true) {
