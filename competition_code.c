@@ -106,46 +106,48 @@ void calibrateTwist() {
 }
 
 //////////////////////////////////////////////AUTONOMOUS CODE//////////////////////////////////////
-void moveFor(int time, int dir) {
-	moveBase(dir * 60, dir * 60);
+void moveFor(int left, int right, int time) {
+	moveBase(left, right);
 	wait1Msec(time); //guesstimate (until encoders)
 	moveBase(0, 0);
-	wait1Msec(200);
+	wait1Msec(500);
 }
 
 void turn(int degrees) { //1 or -1
 	int dir = degrees / abs(degrees);
-	moveBase(dir * 80, -dir * 80);
-	wait1Msec(6 * degrees); //guesstimate (until encoders)
+	moveBase(dir * 60, -dir * 60);
+	wait1Msec(9 * degrees); //guesstimate (until encoders)
 	moveBase(0, 0);
 	wait1Msec(200);
 }
 
 void raiseArmFor(int time) {
-	setArmMotors(25); //when raising and lowering arm, assist with twist motors
+	setArmMotors(30); //when raising and lowering arm, assist with twist motors
 	setTwistMotors(-127);
 	wait1Msec(time);
 	setArmMotors(0);
 	setTwistMotors(0);
+	wait1Msec(100);
 }
 
-void slideFor(int time, int dir) {
-	motor[sidewaysBase] = dir * 100;
+void slideFor(int motorSpeed, int time) {
+	motor[sidewaysBase] = motorSpeed;
 	wait1Msec(time);
 	motor[sidewaysBase] = 0;
-	wait1Msec(200);
+	wait1Msec(400);
 }
+//////////////////ACTUAL AUTONOMOUS
 
 task autonomous() {
 	turn(90);
-	moveFor(600, 1);
+	moveFor(60, 60, 1000);
 	raiseArmFor(1500);
-	moveFor(600, -1);
-	slideFor(1000, -1);
+	moveFor(-40, -40, 400);
+	slideFor(-100, 600);
 	turn(90);
-	moveFor(1000, -1);
+	moveFor(-60, -60, 1000);
 	calibrateTwist();
-	//launch() ##############COMMENTED FOR INSPECTION ONLY
+	launch(); //##############COMMENT FOR INSPECTION ONLY
 }
 
 ////////////////////////////////////////////////////USER CONTROL CODE/////////////////////////////////////////
@@ -186,7 +188,7 @@ task checkArmControls {
 		}
 
 		if(vexRT[Ch2Xmtr2] > 50) { //raise and lower arm-------------right  joystick
-			setArmMotors(90); //when raising and lowering arm, assist with twist motors
+			setArmMotors(30); //when raising and lowering arm, assist with twist motors
 			setTwistMotors(-127);
 		} else {
 			setArmMotors(0); //when raising and lowering arm, assist with twist motors
@@ -216,8 +218,11 @@ task usercontrol() {
 	startTask(checkBaseControls);
 	startTask(checkArmControls);
 	while(true) {
-		if(vexRT[Btn6D] == 1 && vexRT[Btn6U] == 1 && vexRT[Btn5D] == 1 && vexRT[Btn5U] == 1) {//kill switch-all triggers at the same time
-			stopAllTasks();
+		if((vexRT[Btn6D] == 1 && vexRT[Btn6U] == 1 && vexRT[Btn5D] == 1 && vexRT[Btn5U] == 1) || //kill switch-all triggers at the same time
+			 (vexRT[Btn6DXmtr2] == 1 && vexRT[Btn6UXmtr2] == 1 && vexRT[Btn5DXmtr2] == 1 && vexRT[Btn5UXmtr2] == 1)) {
+			stopTask(checkArmControls);
+			wait1Msec(1000);
+			startTask(checkArmControls);
 		}
 	}
 }
