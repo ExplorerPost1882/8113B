@@ -1,5 +1,6 @@
 #pragma config(I2C_Usage, I2C1, i2cSensors)
 #pragma config(Sensor, dgtl1,  armStopper,     sensorTouch)
+#pragma config(Sensor, dgtl2,  ultraSonic,     sensorSONAR_cm)
 #pragma config(Sensor, I2C_1,  ,               sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Motor,  port2,           sidewaysBase,  tmotorVex393_MC29, openLoop)
 #pragma config(Motor,  port3,           leftBase,      tmotorVex393_MC29, openLoop)
@@ -116,13 +117,13 @@ void moveFor(int left, int right, int time) {
 void turn(int degrees) { //1 or -1
 	int dir = degrees / abs(degrees);
 	moveBase(dir * 60, -dir * 60);
-	wait1Msec(9 * degrees); //guesstimate (until encoders)
+	wait1Msec(7.5 * degrees); //guesstimate (until encoders)
 	moveBase(0, 0);
 	wait1Msec(200);
 }
 
 void raiseArmFor(int time) {
-	setArmMotors(30); //when raising and lowering arm, assist with twist motors
+	setArmMotors(40); //when raising and lowering arm, assist with twist motors
 	setTwistMotors(-127);
 	wait1Msec(time);
 	setArmMotors(0);
@@ -136,18 +137,31 @@ void slideFor(int motorSpeed, int time) {
 	motor[sidewaysBase] = 0;
 	wait1Msec(400);
 }
+
+void moveUntilUltrasonic(int left, int right, int cmUntil) {
+	while(SensorValue(ultraSonic) > cmUntil) {
+		moveBase(left, right);
+	}
+}
 //////////////////ACTUAL AUTONOMOUS
 
 task autonomous() {
-	turn(90);
-	moveFor(60, 60, 1000);
-	raiseArmFor(1500);
-	moveFor(-40, -40, 400);
-	slideFor(-100, 600);
-	turn(90);
-	moveFor(-60, -60, 1000);
-	calibrateTwist();
-	launch(); //##############COMMENT FOR INSPECTION ONLY
+	//turn(90);
+	//moveFor(60, 60, 1000);
+	//raiseArmFor(1500);
+	//moveFor(-40, -40, 400);
+	//slideFor(-100, 600);
+	//turn(90);
+	//moveFor(-60, -60, 1000);
+	//calibrateTwist();
+	//launch(); //##############COMMENT FOR INSPECTION ONLY
+
+	//custom
+
+	moveFor(-127, -127, 800);
+	moveFor(30, 30, 1800);
+	//moveUntilUltrasonic(40, 40, 25); //base 40, 40 until ultrasonic reads less than 25 cm
+	launch();
 }
 
 ////////////////////////////////////////////////////USER CONTROL CODE/////////////////////////////////////////
@@ -187,11 +201,14 @@ task checkArmControls {
 			launch(); //auto pauses
 		}
 
-		if(vexRT[Ch2Xmtr2] > 50) { //raise and lower arm-------------right  joystick
+		if(vexRT[Ch2Xmtr2] > 50) { //raise arm----------------------------------------------right  joystick up
 			setArmMotors(30); //when raising and lowering arm, assist with twist motors
 			setTwistMotors(-127);
+		} else if(vexRT[Ch2Xmtr2] < - 50){ //anchor arm-------------------------------------right joystick down
+			setArmMotors(0);
+			setTwistMotors(-30);
 		} else {
-			setArmMotors(0); //when raising and lowering arm, assist with twist motors
+			setArmMotors(0);
 			setTwistMotors(0);
 		}
 
@@ -203,7 +220,7 @@ task checkArmControls {
 		} else if(vexRT[Btn5UXmtr2] == 1) { //force twist negative and zero-----------------left top trigger
 			setTwistMotors(-40);
 			nMotorEncoder[rightTwist] = 0;
-		} else {
+		} else if(abs(vexRT[Ch2Xmtr2]) < 50){
 			setTwistMotors(0);
 		}
 
