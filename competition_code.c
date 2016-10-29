@@ -57,7 +57,7 @@ void pre_auton()
 ///////////////////////////////////////////////CONST VARS AND METHODS/////////////////////////////////
 
 const float SENSITIVITY = 0.7; //%
-const float WRAPS = 6.0;
+const float WRAPS = 5.5;
 
 void setArmMotors(int speed) {
 	motor[armLeftTop] = speed;
@@ -123,8 +123,8 @@ void turn(int degrees) { //1 or -1
 }
 
 void raiseArmFor(int time) {
-	setArmMotors(40); //when raising and lowering arm, assist with twist motors
-	setTwistMotors(-127);
+	setArmMotors(30); //when raising and lowering arm, assist with twist motors
+	setTwistMotors(-80);
 	wait1Msec(time);
 	setArmMotors(0);
 	setTwistMotors(0);
@@ -139,9 +139,11 @@ void slideFor(int motorSpeed, int time) {
 }
 
 void moveUntilUltrasonic(int left, int right, int cmUntil) {
-	while(SensorValue(ultraSonic) > cmUntil) {
+	while(SensorValue[ultraSonic] > cmUntil + 5 && SensorValue[ultraSonic] != -1) {
 		moveBase(left, right);
+		writeDebugStreamLine("sonar: %d", SensorValue[ultraSonic]);
 	}
+	moveBase(0, 0);
 }
 //////////////////ACTUAL AUTONOMOUS
 
@@ -159,7 +161,7 @@ task autonomous() {
 	//custom
 
 	moveFor(-127, -127, 800);
-	moveFor(30, 30, 1800);
+	moveFor(30, 30, 1850);
 	//moveUntilUltrasonic(40, 40, 25); //base 40, 40 until ultrasonic reads less than 25 cm
 	launch();
 }
@@ -197,13 +199,31 @@ task checkArmControls {
 
 		////////////////////////////////////ARM/////////////////////////////Controller 2
 
-		if(vexRT[Btn8DXmtr2] == 1) { //launch-----------------------------------------------right bottom button
-			launch(); //auto pauses
+		if(vexRT[Btn8DXmtr2] == 1) { //prepare launch---------------------------------------right bottom button
+			setArmMotors(-30); //dont do this too long
+			while(vexRT[Btn8DXmtr2] == 1) {//actual launch------------------------------------release right bottom button
+				while(nMotorEncoder(rightTwist) > 4 * -360) {
+					setTwistMotors(-127); //pre-twist : Once it hits 4 rotations around, keep it there
+				}
+				setArmMotors(-50);
+			}
+			while(nMotorEncoder(rightTwist) > WRAPS * -360) {
+					setTwistMotors(-127); //start twisting : Once it hits WRAPS rotations around, launch the arm
+				}
+			setArmMotors(127); //start arm
+			waitUntil(SensorValue[armStopper] == 1);
+			setArmMotors(0); //stop once sensor is triggered
+			setTwistMotors(0);
+			wait1Msec(500);
+			while(nMotorEncoder(rightTwist) < -180) {
+				setTwistMotors(127);
+			}
+			setTwistMotors(0);
 		}
 
 		if(vexRT[Ch2Xmtr2] > 50) { //raise arm----------------------------------------------right  joystick up
 			setArmMotors(30); //when raising and lowering arm, assist with twist motors
-			setTwistMotors(-127);
+			setTwistMotors(-80);
 		} else if(vexRT[Ch2Xmtr2] < - 50){ //anchor arm-------------------------------------right joystick down
 			setArmMotors(0);
 			setTwistMotors(-30);
@@ -241,5 +261,7 @@ task usercontrol() {
 			wait1Msec(1000);
 			startTask(checkArmControls);
 		}
+		writeDebugStreamLine("%d", SensorValue[ultraSonic]);
+
 	}
 }
