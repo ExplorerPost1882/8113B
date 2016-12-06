@@ -34,14 +34,13 @@ void pre_auton() {
 }
 
 const float SENSITIVITY = 0.7; //%
-float WRAPS = 4.0;
+float WRAPS = 2;
 
-void setTwistMotors(int amount) {
+void setTwistMotors(int amount) { // positive = launch
 	motor[rightTop] = amount;
 	motor[leftTop] = amount;
 	motor[rightBot] = amount;
 	motor[leftBot] = amount;
-
 }
 
 void moveBase(int leftMotor, int rightMotor) {
@@ -59,6 +58,12 @@ void lock() {
 	motor[armLock] = -127;
 	wait1Msec(100);
 	motor[armLock] = 0;
+}
+
+void move(int speed, int time) {
+	moveBase(speed, speed);
+	wait1Msec(time);
+	moveBase(0,0);
 }
 
 task overrideLock() {
@@ -84,7 +89,10 @@ task overrideLock() {
 /*---------------------------------------------------------------------------*/
 
 task autonomous() {
-  AutonomousCodePlaceholderForTesting();
+	// move(speed, milli)
+  move(-60, 500);
+  move(60, 300);
+  //launch
 }
 
 /*---------------------------------------------------------------------------*/
@@ -101,28 +109,30 @@ task arm() {
 	nMotorEncoder(rightTop) = 0;
 	while(true) {
 		if(vexRT[Btn6UXmtr2] == 1) {
-			setTwistMotors(127);
+			setTwistMotors(40);
+			nMotorEncoder[rightTop] = 0;
 		} else if(vexRT[Btn5UXmtr2] == 1) {
-			setTwistMotors(-127);
+			setTwistMotors(-40);
+			nMotorEncoder[rightTop] = 0;
 		} else {
 			setTwistMotors(0);
 		}
 		if(vexRT[Btn8DXmtr2] == 1) { //prepare launch---------------------------------------right bottom button
 			while(vexRT[Btn8DXmtr2] == 1) {//actual launch------------------------------------release right bottom button
-				while(nMotorEncoder(rightTop) < 3 * 360) {
-					setTwistMotors(127); //pre-twist : Once it hits 3 rotations around, keep it there
+				while(nMotorEncoder[rightTop] < 1 * 360) {
+					setTwistMotors(127); //pre-twist : Once it hits 1 rotations around, keep it there
 				}
 				setTwistMotors(0);
-				wait1Msec(300);
+				wait1Msec(10);
 			}
-			while(nMotorEncoder(rightTop) < WRAPS * 360 && vexRT[Btn8D] == 0) {
+			while(nMotorEncoder[rightTop] < WRAPS * 360 && vexRT[Btn8D] == 0) {
 					setTwistMotors(127); //start twisting : Once it hits WRAPS rotations around, launch the arm
 			}
 			unlock();
 			wait1Msec(200);
 			setTwistMotors(0);
 			wait1Msec(500);
-			while(nMotorEncoder(rightTop) > 240) {
+			while(nMotorEncoder[rightTop] > 240) {
 				setTwistMotors(-127);
 			}
 			setTwistMotors(0);
@@ -142,10 +152,11 @@ task arm() {
 bool pressed = false;
 
 task usercontrol() {
+	writeDebugStreamLine("started w bat @, %3d", nAvgBatteryLevel);
 	startTask(arm);
 	startTask(overrideLock);
 	while(true) {
-		if((vexRT[Btn6D] == 1 && vexRT[Btn5U] == 1) || (vexRT[Btn6D] == 1 && vexRT[Btn5D] == 1)) {
+		if((vexRT[Btn6D] == 1 && vexRT[Btn5U] == 1) || (vexRT[Btn6DXmtr2] == 1 && vexRT[Btn5DXmtr2] == 1)) {
 			stopTask(arm);
 			wait1Msec(200);
 			startTask(arm);
@@ -153,9 +164,11 @@ task usercontrol() {
 		if(vexRT[Btn7UXmtr2] == 1 && !pressed) {
 			WRAPS += 0.1;
 			pressed = true;
+			writeDebugStreamLine("changed to %d", WRAPS);
 		} else if(vexRT[Btn7DXmtr2] == 1 && !pressed) {
 			WRAPS -= 0.1;
 			pressed = true;
+			writeDebugStreamLine("changed to %d", WRAPS);
 		} else if(vexRT[Btn7DXmtr2] == 0 && vexRT[Btn7UXmtr2] == 0) {
 			pressed = false;
 		}
