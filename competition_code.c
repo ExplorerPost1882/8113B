@@ -1,4 +1,6 @@
 #pragma config(I2C_Usage, I2C1, i2cSensors)
+#pragma config(Sensor, dgtl1,  leftEncoder,    sensorQuadEncoder)
+#pragma config(Sensor, dgtl3,  rightEncoder,   sensorQuadEncoder)
 #pragma config(Sensor, I2C_1,  ,               sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Motor,  port1,           rightTop,      tmotorVex393_HBridge, openLoop, reversed, encoderPort, I2C_1)
 #pragma config(Motor,  port2,           rightBot,      tmotorVex393_MC29, openLoop)
@@ -79,8 +81,6 @@ void move(int speed, int time) {
 	moveBase(0,0);
 }
 
-
-
 task overrideLock() {
 	while(true) {
 		if(vexRT[Btn8UXmtr2]) {
@@ -102,6 +102,25 @@ task overrideLock() {
 /*                                                                           */
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
+
+/**
+auto functions are autonomous only functions
+dist in cm
+**/
+void autoMoveDist(int dist) {
+	while(SensorValue[rightEncoder] < dist * 48 /*some constant*/ && SensorValue[leftEncoder] < dist * 48) {
+		if(SensorValue[rightEncoder] + 30 < SensorValue[leftEncoder]) { //tolerance of 30 ticks
+			motor[rightMotor] = 90;
+			motor[leftMotor] = 80;
+		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 30) {
+			motor[rightMotor] = 80;
+			motor[leftMotor] = 90;
+		} else {
+			motor[rightMotor] = 90;
+			motor[leftMotor] = 90;
+		}
+	}
+}
 
 task autonomous() {
 	// move(speed, milli)
