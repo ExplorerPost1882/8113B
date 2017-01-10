@@ -33,8 +33,8 @@ void pre_auton() {
   bStopTasksBetweenModes = true;
 }
 
-const float SENSITIVITY = 0.7; //%
-float WRAPS = 2;
+const float SENSITIVITY = 0.65; //%
+float WRAPS = 3.0;
 
 void setTwistMotors(int amount) { // positive = launch
 	motor[rightTop] = amount;
@@ -51,7 +51,7 @@ void moveBase(int leftMotor, int rightMotor) {
 void unlock() {
 	motor[armLock] = 127;
 	wait1Msec(500);
-	motor[armLock] = 40;
+	motor[armLock] = 50;
 }
 
 void lock() {
@@ -60,11 +60,26 @@ void lock() {
 	motor[armLock] = 0;
 }
 
+void launch() {
+	unlock();
+	wait1Msec(300);
+	setTwistMotors(0);
+	wait1Msec(100);
+	while(nMotorEncoder[rightTop] > 280) {
+		setTwistMotors(-127);
+	}
+	setTwistMotors(0);
+	wait1Msec(100);
+	lock();
+}
+
 void move(int speed, int time) {
-	moveBase(speed, speed);
+	moveBase(speed, speed * 0.97);
 	wait1Msec(time);
 	moveBase(0,0);
 }
+
+
 
 task overrideLock() {
 	while(true) {
@@ -90,9 +105,14 @@ task overrideLock() {
 
 task autonomous() {
 	// move(speed, milli)
+  move(-127, 500);
+  wait1Msec(1000);
+  move(40, 600);
+  while(nMotorEncoder[rightTop] < WRAPS * 360) {
+					setTwistMotors(127); //start twisting : Once it hits WRAPS rotations around, launch the arm
+			}
+  launch();
   move(-60, 500);
-  move(60, 300);
-  //launch
 }
 
 /*---------------------------------------------------------------------------*/
@@ -106,7 +126,7 @@ task autonomous() {
 /*---------------------------------------------------------------------------*/
 
 task arm() {
-	nMotorEncoder(rightTop) = 0;
+	nMotorEncoder[rightTop] = 0;
 	while(true) {
 		if(vexRT[Btn6UXmtr2] == 1) {
 			setTwistMotors(40);
@@ -119,34 +139,24 @@ task arm() {
 		}
 		if(vexRT[Btn8DXmtr2] == 1) { //prepare launch---------------------------------------right bottom button
 			while(vexRT[Btn8DXmtr2] == 1) {//actual launch------------------------------------release right bottom button
-				while(nMotorEncoder[rightTop] < 1 * 360) {
+				while(nMotorEncoder[rightTop] < 2.5 * 360) {
 					setTwistMotors(127); //pre-twist : Once it hits 1 rotations around, keep it there
 				}
 				setTwistMotors(0);
-				wait1Msec(10);
 			}
 			while(nMotorEncoder[rightTop] < WRAPS * 360 && vexRT[Btn8D] == 0) {
 					setTwistMotors(127); //start twisting : Once it hits WRAPS rotations around, launch the arm
 			}
-			unlock();
-			wait1Msec(200);
-			setTwistMotors(0);
-			wait1Msec(500);
-			while(nMotorEncoder[rightTop] > 240) {
-				setTwistMotors(-127);
-			}
-			setTwistMotors(0);
-			wait1Msec(400);
-			lock();
+			launch();
 		}
 	}
-	int armMotion = vexRT[Ch2Xmtr2];
-	if(armMotion < 30) { //deadzone check for arm lift
-		armMotion = 0;
-	} else if(armMotion > -30) {
-		armMotion = 0;
-	}
-	setTwistMotors(armMotion);
+	//int armMotion = vexRT[Ch2Xmtr2];
+	//if(armMotion < 30) { //deadzone check for arm lift
+	//	armMotion = 0;
+	//} else if(armMotion > -30) {
+	//	armMotion = 0;
+	//}
+	//setTwistMotors(armMotion);
 }
 
 bool pressed = false;
