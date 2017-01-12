@@ -107,17 +107,53 @@ task overrideLock() {
 auto functions are autonomous only functions
 dist in cm
 **/
-void autoMoveDist(int dist) {
-	while(SensorValue[rightEncoder] < dist * 48 /*some constant*/ && SensorValue[leftEncoder] < dist * 48) {
-		if(SensorValue[rightEncoder] + 30 < SensorValue[leftEncoder]) { //tolerance of 30 ticks
-			motor[rightMotor] = 90;
-			motor[leftMotor] = 80;
-		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 30) {
-			motor[rightMotor] = 80;
-			motor[leftMotor] = 90;
+void autoMoveStraight(int dist) {
+	while(SensorValue[rightEncoder] < dist * 3.6 /*some constant*/ && SensorValue[leftEncoder] < dist * 3.6) {
+		if(SensorValue[rightEncoder] + 10 < SensorValue[leftEncoder]) { //tolerance of 10 ticks
+			motor[rightBase] = 90;
+			motor[leftBase] = 80;
+		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 10) {
+			motor[rightBase] = 80;
+			motor[leftBase] = 90;
 		} else {
-			motor[rightMotor] = 90;
-			motor[leftMotor] = 90;
+			motor[rightBase] = 90;
+			motor[leftBase] = 90;
+		}
+	}
+}
+
+/**
+multiplier base is 90 degrees (1 == turn 90)
++ multiplier is clockwise (right)
+- multiplier is counter-clockwise (left)
+**/
+void autoTurn(int multiplier) {
+	if(multiplier == 0) return;
+	if(multiplier > 0) {  // right
+		while(SensorValue[rightEncoder] > -108 * multiplier && SensorValue[leftEncoder] < 108 * multiplier) {
+			if(abs(SensorValue[rightEncoder] + 5) < SensorValue[leftEncoder]) { //tolerance of 5 ticks
+				motor[rightBase] = 80;
+				motor[leftBase] = 70;
+			} else if(abs(SensorValue[rightEncoder]) < SensorValue[leftEncoder] + 5) {
+				motor[rightBase] = 70;
+				motor[leftBase] = 80;
+			} else {
+				motor[rightBase] = 80;
+				motor[leftBase] = 80;
+			}
+		}
+	} else {
+		while(SensorValue[rightEncoder] > 108 * multiplier && SensorValue[leftEncoder] < -108 * multiplier) {
+			if(SensorValue[rightEncoder] + 5 < abs(SensorValue[leftEncoder])) { //tolerance of 5 ticks
+				motor[rightBase] = 80;
+				motor[leftBase] = 70;
+			} else if(SensorValue[rightEncoder] < abs(SensorValue[leftEncoder] + 5)) {
+				motor[rightBase] = 70;
+				motor[leftBase] = 80;
+			} else {
+				motor[rightBase] = 80;
+				motor[leftBase] = 80;
+			}
 		}
 	}
 }
