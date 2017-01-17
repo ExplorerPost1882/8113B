@@ -20,7 +20,6 @@
 
 //Main competition background code...do not modify!
 #include "Vex_Competition_Includes.c"
-
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
 /*                                                                           */
@@ -92,34 +91,24 @@ task overrideLock() {
 		}
 	}
 }
-
-/*---------------------------------------------------------------------------*/
-/*                                                                           */
-/*                              Autonomous Task                              */
-/*                                                                           */
-/*  This task is used to control your robot during the autonomous phase of   */
-/*  a VEX Competition.                                                       */
-/*                                                                           */
-/*  You must modify the code to add your own robot specific commands here.   */
-/*---------------------------------------------------------------------------*/
-
-/**
-auto functions are autonomous only functions
-dist in cm
-**/
+//********************************************************auto**********************************************************
 void autoMoveStraight(int dist) {
-	while(SensorValue[rightEncoder] < dist * 3.6 /*some constant*/ && SensorValue[leftEncoder] < dist * 3.6) {
-		if(SensorValue[rightEncoder] + 10 < SensorValue[leftEncoder]) { //tolerance of 10 ticks
+	SensorValue[rightEncoder] = 0;
+	SensorValue[leftEncoder] = 0;
+	while(abs(SensorValue[rightEncoder]) / 21.02 < dist /*some constant*/ && SensorValue[leftEncoder] / 21.02 < dist) {
+		/*if(SensorValue[rightEncoder] + 5 < SensorValue[leftEncoder]) { //tolerance of 5 tick
 			motor[rightBase] = 90;
 			motor[leftBase] = 80;
-		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 10) {
+		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 5) {
 			motor[rightBase] = 80;
 			motor[leftBase] = 90;
-		} else {
-			motor[rightBase] = 90;
-			motor[leftBase] = 90;
+		} else */{
+			motor[rightBase] = 50;
+			motor[leftBase] = 50;
 		}
 	}
+	motor[rightBase] = 0;
+	motor[leftBase] = 0;
 }
 
 /**
@@ -128,6 +117,8 @@ multiplier base is 90 degrees (1 == turn 90)
 - multiplier is counter-clockwise (left)
 **/
 void autoTurn(int multiplier) {
+	SensorValue[rightEncoder] = 0;
+	SensorValue[leftEncoder] = 0;
 	if(multiplier == 0) return;
 	if(multiplier > 0) {  // right
 		while(SensorValue[rightEncoder] > -108 * multiplier && SensorValue[leftEncoder] < 108 * multiplier) {
@@ -159,15 +150,8 @@ void autoTurn(int multiplier) {
 }
 
 task autonomous() {
-	// move(speed, milli)
-  move(-127, 500);
-  wait1Msec(1000);
-  move(40, 600);
-  while(nMotorEncoder[rightTop] < WRAPS * 360) {
-					setTwistMotors(127); //start twisting : Once it hits WRAPS rotations around, launch the arm
-			}
-  launch();
-  move(-60, 500);
+	autoMoveStraight(10);
+	//autoTurn(1);
 }
 
 /*---------------------------------------------------------------------------*/
