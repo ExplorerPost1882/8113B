@@ -1,5 +1,5 @@
 #pragma config(I2C_Usage, I2C1, i2cSensors)
-#pragma config(Sensor, dgtl1,  leftEncoder,    sensorQuadEncoder)
+#pragma config(Sensor, dgtl2,  leftEncoder,    sensorRotation)
 #pragma config(Sensor, dgtl3,  rightEncoder,   sensorQuadEncoder)
 #pragma config(Sensor, I2C_1,  ,               sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Motor,  port1,           rightTop,      tmotorVex393_HBridge, openLoop, reversed, encoderPort, I2C_1)
@@ -92,20 +92,29 @@ task overrideLock() {
 	}
 }
 //********************************************************auto**********************************************************
+//dist in cm
 void autoMoveStraight(int dist) {
 	SensorValue[rightEncoder] = 0;
-	SensorValue[leftEncoder] = 0;
-	while(abs(SensorValue[rightEncoder]) / 21.02 < dist /*some constant*/ && SensorValue[leftEncoder] / 21.02 < dist) {
-		/*if(SensorValue[rightEncoder] + 5 < SensorValue[leftEncoder]) { //tolerance of 5 tick
-			motor[rightBase] = 90;
-			motor[leftBase] = 80;
-		} else if(SensorValue[rightEncoder] > SensorValue[leftEncoder] + 5) {
-			motor[rightBase] = 80;
-			motor[leftBase] = 90;
-		} else */{
-			motor[rightBase] = 50;
-			motor[leftBase] = 50;
+	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
+	//motor[rightBase] = 20;
+	//motor[leftBase] = 20;
+	float re = abs(SensorValue[rightEncoder] / 2);
+	float le = SensorValue[leftEncoder];
+	int rm = 70;
+	int lm = 70;
+	while(re / 8.35 < dist - 1 || le / 8.35 < dist - 1) {
+		//float delta = abs((re - le) / 20.0);
+		//motor[rightBase] = 70 - delta;
+		//motor[leftBase] = 70 + delta;
+		if(le < re){
+			lm += (re - le) / 15;
+		} else if(re < lm) {
+			rm += (le - re) / 15;
 		}
+		motor[rightBase] = rm;
+		motor[leftBase] = lm;
+		re = abs(SensorValue[rightEncoder] / 2);
+		le = SensorValue[leftEncoder];
 	}
 	motor[rightBase] = 0;
 	motor[leftBase] = 0;
@@ -150,7 +159,7 @@ void autoTurn(int multiplier) {
 }
 
 task autonomous() {
-	autoMoveStraight(10);
+	autoMoveStraight(200);
 	//autoTurn(1);
 }
 
