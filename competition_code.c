@@ -20,19 +20,12 @@
 
 //Main competition background code...do not modify!
 #include "Vex_Competition_Includes.c"
-/*---------------------------------------------------------------------------*/
-/*                          Pre-Autonomous Functions                         */
-/*                                                                           */
-/*  You may want to perform some actions before the competition starts.      */
-/*  Do them in the following function.  You must return from this function   */
-/*  or the autonomous and usercontrol tasks will not be started.  This       */
-/*  function is only called once after the cortex has been powered on and    */
-/*  not every time that the robot is disabled.                               */
-/*---------------------------------------------------------------------------*/
 
+//*******************************************PreAuton************************************************************
 void pre_auton() {
   bStopTasksBetweenModes = true;
 }
+//*******************************************Main****************************************************************
 
 const float SENSITIVITY = 0.65; //%
 float WRAPS = 3.0;
@@ -91,33 +84,33 @@ task overrideLock() {
 		}
 	}
 }
+
 //********************************************************auto**********************************************************
 //dist in cm
 void autoMoveStraight(int dist) {
 	SensorValue[rightEncoder] = 0;
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
-	//motor[rightBase] = 20;
-	//motor[leftBase] = 20;
-	float re = abs(SensorValue[rightEncoder] / 2);
+	float re = abs(SensorValue[rightEncoder] / 1.99);
 	float le = SensorValue[leftEncoder];
-	int rm = 70;
-	int lm = 70;
-	while(re / 8.35 < dist - 1 || le / 8.35 < dist - 1) {
-		//float delta = abs((re - le) / 20.0);
-		//motor[rightBase] = 70 - delta;
-		//motor[leftBase] = 70 + delta;
-		if(le < re){
-			lm += (re - le) / 15;
-		} else if(re < lm) {
-			rm += (le - re) / 15;
+	float base = 40;
+	float totalComp = 0;
+	while(re / 8.15 < dist - (base / 20.0) || le / 8.15 < dist - (base / 20.0)) {
+		if((re + le) / 5.0 < 30) {
+			base = 40 + ((re + le) / 10.0);
+		} else {
+			base = 70;
 		}
-		motor[rightBase] = rm;
-		motor[leftBase] = lm;
-		re = abs(SensorValue[rightEncoder] / 2);
+		float delta = (re - le);
+		totalComp += delta;
+		motor[rightBase] = base - delta - totalComp / 500.0;
+		motor[leftBase] = base + delta + totalComp / 500.0;
+		re = abs(SensorValue[rightEncoder] / 1.99);
 		le = SensorValue[leftEncoder];
+		wait1Msec(5);
 	}
 	motor[rightBase] = 0;
 	motor[leftBase] = 0;
+	writeDebugStreamLine("t:%f", totalComp);
 }
 
 /**
@@ -125,42 +118,32 @@ multiplier base is 90 degrees (1 == turn 90)
 + multiplier is clockwise (right)
 - multiplier is counter-clockwise (left)
 **/
-void autoTurn(int multiplier) {
+void autoTurn(int dist) {
 	SensorValue[rightEncoder] = 0;
-	SensorValue[leftEncoder] = 0;
-	if(multiplier == 0) return;
-	if(multiplier > 0) {  // right
-		while(SensorValue[rightEncoder] > -108 * multiplier && SensorValue[leftEncoder] < 108 * multiplier) {
-			if(abs(SensorValue[rightEncoder] + 5) < SensorValue[leftEncoder]) { //tolerance of 5 ticks
-				motor[rightBase] = 80;
-				motor[leftBase] = 70;
-			} else if(abs(SensorValue[rightEncoder]) < SensorValue[leftEncoder] + 5) {
-				motor[rightBase] = 70;
-				motor[leftBase] = 80;
-			} else {
-				motor[rightBase] = 80;
-				motor[leftBase] = 80;
-			}
+	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
+	float re = abs(SensorValue[rightEncoder] / 1.99);
+	float le = SensorValue[leftEncoder];
+	float base = 40;
+	float totalComp = 0;
+	while(re / 8.15 < dist - (base / 20.0) || le / 8.15 < dist - (base / 20.0)) {
+		if((re + le) / 5.0 < 30) {
+			base = 40 + ((re + le) / 10.0);
+		} else {
+			base = 70;
 		}
-	} else {
-		while(SensorValue[rightEncoder] > 108 * multiplier && SensorValue[leftEncoder] < -108 * multiplier) {
-			if(SensorValue[rightEncoder] + 5 < abs(SensorValue[leftEncoder])) { //tolerance of 5 ticks
-				motor[rightBase] = 80;
-				motor[leftBase] = 70;
-			} else if(SensorValue[rightEncoder] < abs(SensorValue[leftEncoder] + 5)) {
-				motor[rightBase] = 70;
-				motor[leftBase] = 80;
-			} else {
-				motor[rightBase] = 80;
-				motor[leftBase] = 80;
-			}
-		}
+		float delta = (re - le);
+		totalComp += delta;
+		motor[rightBase] = -(base - delta - totalComp / 500.0);
+		motor[leftBase] = base + delta + totalComp / 500.0;
+		re = abs(SensorValue[rightEncoder] / 1.99);
+		le = SensorValue[leftEncoder];
+		wait1Msec(5);
 	}
 }
 
 task autonomous() {
 	autoMoveStraight(200);
-	//autoTurn(1);
+	autoTurn(0);
 }
 
 /*---------------------------------------------------------------------------*/
