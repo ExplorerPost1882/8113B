@@ -88,23 +88,32 @@ task overrideLock() {
 //********************************************************auto**********************************************************
 //dist in cm
 void autoMoveStraight(int dist) {
+	clearDebugStream();
 	SensorValue[rightEncoder] = 0;
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
-	float re = abs(SensorValue[rightEncoder] / 1.99);
+	float re = abs(SensorValue[rightEncoder] / 2.0);
 	float le = SensorValue[leftEncoder];
-	float base = 40;
+	float base = 50;
 	float totalComp = 0;
-	while(re / 8.15 < dist - (base / 20.0) || le / 8.15 < dist - (base / 20.0)) {
-		if((re + le) / 5.0 < 30) {
-			base = 40 + ((re + le) / 10.0);
+	wait1Msec(50);
+	while(re / 8.15 < dist - (base / 18.0) || le / 8.15 < dist - (base / 18.0)) {
+		if((re + le) / 5.0 < 20) {
+			base = 50 + ((re + le) / 5.0);
 		} else {
 			base = 70;
 		}
-		float delta = (re - le);
+		float deltamult;
+		if(base < 51) {
+			deltamult = 3.0;
+		} else {
+			deltamult = 1.0;
+		}
+		writeDebugStreamLine("deltais %f", deltamult);
+		float delta = (re - le) * deltamult;
 		totalComp += delta;
-		motor[rightBase] = base - delta - totalComp / 500.0;
-		motor[leftBase] = base + delta + totalComp / 500.0;
-		re = abs(SensorValue[rightEncoder] / 1.99);
+		motor[rightBase] = base - delta - totalComp / 100.0;
+		motor[leftBase] = base + delta + totalComp / 100.0;
+		re = abs(SensorValue[rightEncoder] / 2.0);
 		le = SensorValue[leftEncoder];
 		wait1Msec(5);
 	}
@@ -118,31 +127,34 @@ multiplier base is 90 degrees (1 == turn 90)
 + multiplier is clockwise (right)
 - multiplier is counter-clockwise (left)
 **/
-void autoTurn(int dist) {
+void autoTurn(int mult) {
+	float dist = mult * 31.1;
 	SensorValue[rightEncoder] = 0;
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
-	float re = abs(SensorValue[rightEncoder] / 1.99);
+	float re = abs(SensorValue[rightEncoder] / 2.0);
 	float le = SensorValue[leftEncoder];
-	float base = 40;
+	float base = 50;
 	float totalComp = 0;
-	while(re / 8.15 < dist - (base / 20.0) || le / 8.15 < dist - (base / 20.0)) {
-		if((re + le) / 5.0 < 30) {
-			base = 40 + ((re + le) / 10.0);
+	while(re / 8.15 < dist - (base / 22.0) || le / 8.15 < dist - (base / 22.0)) {
+		if((re + le) / 10.0 < 30) {
+			base = 30 + ((re + le) / 10.0);
 		} else {
-			base = 70;
+			base = 60;
 		}
 		float delta = (re - le);
 		totalComp += delta;
-		motor[rightBase] = -(base - delta - totalComp / 500.0);
-		motor[leftBase] = base + delta + totalComp / 500.0;
-		re = abs(SensorValue[rightEncoder] / 1.99);
+		motor[rightBase] = -(base - delta - totalComp / 300.0);
+		motor[leftBase] = base + delta + totalComp / 300.0;
+		re = abs(SensorValue[rightEncoder] / 2.0);
 		le = SensorValue[leftEncoder];
 		wait1Msec(5);
 	}
+	motor[rightBase] = 0;
+	motor[leftBase] = 0;
 }
 
 task autonomous() {
-	autoMoveStraight(200);
+	autoMoveStraight(100);
 	autoTurn(0);
 }
 
