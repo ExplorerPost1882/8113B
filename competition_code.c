@@ -67,12 +67,6 @@ void launch() {
 	lock();
 }
 
-void move(int speed, int time) {
-	moveBase(speed, speed * 0.97);
-	wait1Msec(time);
-	moveBase(0,0);
-}
-
 task overrideLock() {
 	while(true) {
 		if(vexRT[Btn8UXmtr2]) {
@@ -86,35 +80,51 @@ task overrideLock() {
 }
 
 //********************************************************auto**********************************************************
-//dist in cm
-void autoMoveStraight(int dist) {
-	clearDebugStream();
+
+void basicMove(int speed, int time) {
+	moveBase(speed, speed);
+	wait1Msec(time);
+	moveBase(0,0);
+}
+
+void autoLaunch() {
+	while(nMotorEncoder[rightTop] < WRAPS * 360 && vexRT[Btn8D] == 0) {
+					setTwistMotors(127); //start twisting : Once it hits WRAPS rotations around, launch the arm
+			}
+	launch();
+}
+
+//dist in foam blocks
+void autoMoveStraight(float dist) {
+	int neg = 1;
+	if(dist < 0) {
+		neg = -1;
+	}
+	dist = abs(dist);
+	dist *= 60.96;
+	wait1Msec(200);
 	SensorValue[rightEncoder] = 0;
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
 	float re = abs(SensorValue[rightEncoder] / 2.0);
 	float le = SensorValue[leftEncoder];
-	float base = 50;
+	float base = 70;
 	float totalComp = 0;
 	wait1Msec(50);
+	int totalloops = 0;
 	while(re / 8.15 < dist - (base / 18.0) || le / 8.15 < dist - (base / 18.0)) {
-		if((re + le) / 5.0 < 20) {
-			base = 50 + ((re + le) / 5.0);
-		} else {
-			base = 70;
-		}
 		float deltamult;
-		if(base < 51) {
+		if(totalloops < 50) {
 			deltamult = 3.0;
 		} else {
 			deltamult = 1.0;
 		}
-		writeDebugStreamLine("deltais %f", deltamult);
 		float delta = (re - le) * deltamult;
 		totalComp += delta;
-		motor[rightBase] = base - delta - totalComp / 100.0;
-		motor[leftBase] = base + delta + totalComp / 100.0;
+		motor[rightBase] = neg * (base - delta - totalComp / 300.0);
+		motor[leftBase] = neg * (base + delta + totalComp / 300.0);
 		re = abs(SensorValue[rightEncoder] / 2.0);
 		le = SensorValue[leftEncoder];
+		totalloops += 1;
 		wait1Msec(5);
 	}
 	motor[rightBase] = 0;
@@ -122,29 +132,25 @@ void autoMoveStraight(int dist) {
 	writeDebugStreamLine("t:%f", totalComp);
 }
 
-/**
-multiplier base is 90 degrees (1 == turn 90)
-+ multiplier is clockwise (right)
-- multiplier is counter-clockwise (left)
-**/
-void autoTurn(int mult) {
-	float dist = mult * 31.1;
+void autoTurn(int degrees) {
+	wait1Msec(200);
+	int neg = 1;
+	if(degrees < 0) {
+		neg = -1;
+	}
+	degrees = abs(degrees);
+	float dist = degrees * 0.3456; // 31.1 / 90
 	SensorValue[rightEncoder] = 0;
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
 	float re = abs(SensorValue[rightEncoder] / 2.0);
 	float le = SensorValue[leftEncoder];
-	float base = 50;
+	float base = 70;
 	float totalComp = 0;
-	while(re / 8.15 < dist - (base / 22.0) || le / 8.15 < dist - (base / 22.0)) {
-		if((re + le) / 10.0 < 30) {
-			base = 30 + ((re + le) / 10.0);
-		} else {
-			base = 60;
-		}
+	while(re / 8.15 < dist - (base / 45.0) || le / 8.15 < dist - (base / 45.0)) {
 		float delta = (re - le);
 		totalComp += delta;
-		motor[rightBase] = -(base - delta - totalComp / 300.0);
-		motor[leftBase] = base + delta + totalComp / 300.0;
+		motor[rightBase] = -neg * (base - delta - totalComp / 300.0);
+		motor[leftBase] = neg * (base + delta + totalComp / 300.0);
 		re = abs(SensorValue[rightEncoder] / 2.0);
 		le = SensorValue[leftEncoder];
 		wait1Msec(5);
@@ -153,20 +159,38 @@ void autoTurn(int mult) {
 	motor[leftBase] = 0;
 }
 
+//*****************autonomous-code***********************
+
 task autonomous() {
-	autoMoveStraight(100);
-	autoTurn(0);
+	autoMoveStraight(-1);
+	autoMoveStraight(0.5);
+	autoLaunch();
+	wait1Msec(1000);
+	autoTurn(180);
+	basicMove(-127, 1200); //straighten self after launch by backing against wall
+	wait1Msec(800);
+	autoMoveStraight(1.4);
+	autoTurn(90);
+	autoMoveStraight(1.5); //move to pick up cube
+	autoTurn(90);
+	autoMoveStraight(-0.3);
+	autoLaunch(); //launch cube
+	wait1Msec(1000);
+	autoTurn(90);
+	autoMoveStraight(1.5);
+	autoTurn(-90);
+	//basicMove(-127, 1000); //back up against fence to straighten again
+	wait1Msec(800);
+	autoMoveStraight(0.1);
+	autoTurn(-90);
+	autoMoveStraight(1.2); //move to pick up first start along fence
+	autoTurn(90);
+	autoMoveStraight(0.2);
+	autoLaunch(); //launch that star
+
 }
 
-/*---------------------------------------------------------------------------*/
-/*                                                                           */
-/*                              User Control Task                            */
-/*                                                                           */
-/*  This task is used to control your robot during the user control phase of */
-/*  a VEX Competition.                                                       */
-/*                                                                           */
-/*  You must modify the code to add your own robot specific commands here.   */
-/*---------------------------------------------------------------------------*/
+//**********************************************driver*******************************************************************
 
 task arm() {
 	nMotorEncoder[rightTop] = 0;
