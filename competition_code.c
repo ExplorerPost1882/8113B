@@ -63,7 +63,7 @@ void launch() {
 		setTwistMotors(-127);
 	}
 	setTwistMotors(0);
-	wait1Msec(100);
+	wait1Msec(700);
 	lock();
 }
 
@@ -107,21 +107,22 @@ void autoMoveStraight(float dist) {
 	SensorValue[leftEncoder] = 0;  // (534 arbitary number for ticks per rotation) / (circumference of 32 cm) = (16.7 ticks per cm)
 	float re = abs(SensorValue[rightEncoder] / 2.0);
 	float le = SensorValue[leftEncoder];
-	float base = 70;
+	float base = 30;
 	float totalComp = 0;
 	wait1Msec(50);
 	int totalloops = 0;
+	float learning = 0;
 	while(re / 8.15 < dist - (base / 18.0) || le / 8.15 < dist - (base / 18.0)) {
-		float deltamult;
-		if(totalloops < 50) {
-			deltamult = 3.0;
-		} else {
-			deltamult = 1.0;
+		if(totalloops <= 200) {
+			base = totalloops / 4 + 20;
 		}
-		float delta = (re - le) * deltamult;
+		if(totalloops <= 200) {
+			learning = totalloops / 400;
+		}
+		float delta = (re - le) * learning;
 		totalComp += delta;
-		motor[rightBase] = neg * (base - delta - totalComp / 300.0);
-		motor[leftBase] = neg * (base + delta + totalComp / 300.0);
+		motor[rightBase] = neg * (base - delta - totalComp / 500.0);
+		motor[leftBase] = neg * (base + delta + totalComp / 500.0);
 		re = abs(SensorValue[rightEncoder] / 2.0);
 		le = SensorValue[leftEncoder];
 		totalloops += 1;
@@ -129,7 +130,6 @@ void autoMoveStraight(float dist) {
 	}
 	motor[rightBase] = 0;
 	motor[leftBase] = 0;
-	writeDebugStreamLine("t:%f", totalComp);
 }
 
 void autoTurn(int degrees) {
@@ -146,8 +146,8 @@ void autoTurn(int degrees) {
 	float le = SensorValue[leftEncoder];
 	float base = 70;
 	float totalComp = 0;
-	while(re / 8.15 < dist - (base / 45.0) || le / 8.15 < dist - (base / 45.0)) {
-		float delta = (re - le);
+	while(re / 8.15 < dist - (base / 30.0) || le / 8.15 < dist - (base / 30.0)) {
+		float delta = (re - le) * 0.6;
 		totalComp += delta;
 		motor[rightBase] = -neg * (base - delta - totalComp / 300.0);
 		motor[leftBase] = neg * (base + delta + totalComp / 300.0);
@@ -162,32 +162,49 @@ void autoTurn(int degrees) {
 //*****************autonomous-code***********************
 
 task autonomous() {
-	autoMoveStraight(-1);
-	autoMoveStraight(0.5);
-	autoLaunch();
-	wait1Msec(1000);
-	autoTurn(180);
-	basicMove(-127, 1200); //straighten self after launch by backing against wall
-	wait1Msec(800);
-	autoMoveStraight(1.4);
-	autoTurn(90);
-	autoMoveStraight(1.5); //move to pick up cube
-	autoTurn(90);
-	autoMoveStraight(-0.3);
-	autoLaunch(); //launch cube
-	wait1Msec(1000);
-	autoTurn(90);
+	autoMoveStraight(-1);		// back from star to drop arm
+	autoMoveStraight(0.48);	// forward to star
+	autoLaunch(); 					// launch preload on robot
+	if(false) { // false: [for competition 15 sec autonomous]		 true: [for programming skills autonomous]
+		wait1Msec(500);
+		autoLaunch(); 					// launch preload 1
+		wait1Msec(500);
+		autoLaunch(); 					// launch preload 2
+		wait1Msec(500);
+		autoLaunch(); 					// launch preload 3
+		autoTurn(180); 					// turn around toward fence
+		basicMove(-127, 1200); 	// straighten self after launch by backing against wall
+		wait1Msec(500);
+		autoMoveStraight(1.2);	// move forward to midline
+	} else {
+		autoMoveStraight(-0.8);
+		return;
+	}
+	autoTurn(90); 						// turn toward cube
+	autoMoveStraight(1.5);		// move to move up cube
+	autoMoveStraight(-0.5);
+	autoTurn(90); 						// turn away from cube toward outside
+	//autoMoveStraight(-0.2); // no back up a bit toward fence
+	//autoLaunch(); 					// no launch cube
+	autoTurn(90); 						// turn right toward star line
+	//autoMoveStraight(1.5);	// no move toward corner
+	//autoTurn(135); 					// no rotate rest of way to face toward fence
+	//basicMove(-127, 1200);	// no straighten self after launch by backing against wall
+	//wait1Msec(500);
+	//autoMoveStraight(1.5);	// no get in position to turn toward line of stars
+	//autoTurn(90);						// no turn toward line of stars
 	autoMoveStraight(1.5);
-	autoTurn(-90);
-	//basicMove(-127, 1000); //back up against fence to straighten again
-	wait1Msec(800);
-	autoMoveStraight(0.1);
-	autoTurn(-90);
-	autoMoveStraight(1.2); //move to pick up first start along fence
-	autoTurn(90);
-	autoMoveStraight(0.2);
-	autoLaunch(); //launch that star
-
+	autoLaunch();							// launch it
+	autoMoveStraight(-0.5);
+	autoTurn(-90);						// turn to line up for next one
+	for(int i = 0; i < 3; i++) {
+		autoMoveStraight(0.5);	// move toward next star
+		autoTurn(90);						// turn toward it
+		autoMoveStraight(0.5);	// move a it to get under it
+		autoLaunch();						// launch it
+		autoMoveStraight(-0.5); // back up to turn
+		autoTurn(-90);					// turn to line up for next one
+	}
 }
 
 //**********************************************driver*******************************************************************
